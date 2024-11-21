@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CommonResource;
 use App\Models\Fcm;
 use Illuminate\Http\Request;
 use App\Models\User;
@@ -21,7 +22,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'fcm' =>'required|string|unique:fcms,fcm'
+            'fcm' =>'required|string'
         ]);
 
         if ($validator->fails()) {
@@ -36,8 +37,10 @@ class UserController extends Controller
             'role' =>'Student'
         ]);
 
-
+        if(!Fcm::where('fcm',$request->fcm)->exists())
+        {
         $user->fcm()->create(['fcm'=>$request->fcm]);
+        }
         // Generate a token for the user
         $token = $user->createToken('auth_token')->plainTextToken;
         DB::commit();
@@ -90,8 +93,8 @@ class UserController extends Controller
 
   
 
-    public function getStudentPapers()
+    public function getStudents()
     {
-        return '3';
+        return  CommonResource::collection(User::select('name','email')->where('role','Student')->paginate());
     }
 }
