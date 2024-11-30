@@ -95,6 +95,6 @@ class UserController extends Controller
 
     public function getStudents()
     {
-        return  CommonResource::collection(User::select('name','email')->where('role','Student')->paginate());
+        return  CommonResource::collection(User::select('name','email')->where('role','Student')->simplePaginate(10)->withPath(''));
     }
 }
