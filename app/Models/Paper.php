@@ -8,8 +8,5 @@ class Paper extends Model
 {
   protected $guarded = [];
 
-  public function lecturer()
-  {
-    return $this->hasOne(User::class);
-  }
+ 
 }

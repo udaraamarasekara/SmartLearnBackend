@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('papers', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained();
             $table->string('title');
             $table->string('file');
             $table->timestamps();

@@ -95,6 +95,67 @@ class UserController extends Controller
 
     public function getStudents()
     {
-        return  CommonResource::collection(User::select('name','email')->where('role','Student')->simplePaginate(10)->withPath(''));
+        return  CommonResource::collection(User::select('id','name','email')->where('role','Student')->simplePaginate(10)->withPath(''));
+    }
+
+    public function getTutors()
+    {
+        return  CommonResource::collection(User::select('id','name','email')->where('role','Lecturer')->simplePaginate(10)->withPath(''));
+    }
+
+    public function registerTutor(Request $request)
+    {
+        try{ 
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users',
+                'password' => 'required|string|min:8|confirmed',
+            ]);
+    
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+    
+            // Create a new user
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' =>'Lecturer'
+            ]);
+            return true;
+        }
+        catch(Exception $e)
+        {
+            return $e;
+        }
+    }
+
+    public function deleteMember(int $id)
+    {
+      try{
+         
+          User::where('id',$id)->delete();
+          return true; 
+        }
+        catch (Exception $e){
+            return false;
+        }
+    } 
+    
+    public function newPaper(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'file' => 'required|application/pdf',
+        ]);
+        $path = '';
+        if ($request->file('file')) {
+            $file = $request->file('file');
+            $path = $file->store('uploads', 'public');
+
+        }
+        
     }
 }
