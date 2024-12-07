@@ -150,12 +150,17 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'file' => 'required|application/pdf',
         ]);
+
+
+        if ($validator->fails()) {
+            return false;
+        }
         $path = '';
         if ($request->file('file')) {
             $file = $request->file('file');
             $path = $file->store('uploads', 'public');
 
         }
-        
+        return true;
     }
 }
