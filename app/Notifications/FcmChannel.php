@@ -2,7 +2,6 @@
 
 namespace App\Notifications;
 
-use Illuminate\Notifications\Notification;
 use Kreait\Firebase\Factory;
 
 class FcmChannel
@@ -11,7 +10,7 @@ class FcmChannel
     {
         $data = $notification->toFcm($notifiable);
 
-        $factory = (new Factory)->withServiceAccount(config('firebase.credentials'));
+        $factory = (new Factory)->withServiceAccount(public_path('firebase_credentials.json'));
         $messaging = $factory->createMessaging();
 
         $messaging->send($data);

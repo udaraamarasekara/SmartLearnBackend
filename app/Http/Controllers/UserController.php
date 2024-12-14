@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CommonResource;
 use App\Models\Fcm;
+use App\Models\Paper;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Notifications\CommonNotification;
 use Exception;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
 class UserController extends Controller
 {
     public function register(Request $request)
@@ -37,10 +41,6 @@ class UserController extends Controller
             'role' =>'Student'
         ]);
 
-        if(!Fcm::where('fcm',$request->fcm)->exists())
-        {
-        $user->fcm()->create(['fcm'=>$request->fcm]);
-        }
         // Generate a token for the user
         $token = $user->createToken('auth_token')->plainTextToken;
         DB::commit();
@@ -78,9 +78,8 @@ class UserController extends Controller
         }
 
 
-        if (!Fcm::where('fcm', $request->fcm)->exists()) {
             $user->fcm()->create(['fcm'=>$request->fcm]);
-        }
+       
         // Generate a token for the authenticated user
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -102,6 +101,7 @@ class UserController extends Controller
     {
         return  CommonResource::collection(User::select('id','name','email')->where('role','Lecturer')->simplePaginate(10)->withPath(''));
     }
+    
 
     public function registerTutor(Request $request)
     {
@@ -118,7 +118,7 @@ class UserController extends Controller
             }
     
             // Create a new user
-            $user = User::create([
+           User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
@@ -148,10 +148,10 @@ class UserController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'file' => 'required|application/pdf',
+            'file' => 'required|mimes:pdf',
         ]);
 
-
+      
         if ($validator->fails()) {
             return false;
         }
@@ -159,8 +159,58 @@ class UserController extends Controller
         if ($request->file('file')) {
             $file = $request->file('file');
             $path = $file->store('uploads', 'public');
+            Paper::create(['title'=>$request->name,'file'=>$path]);   
+            $students = User::where('role','Student')->get();
+            foreach($students as $student)
+            {    if(Fcm::where('user_id',$student->id)->exists())
+                { 
+                 User::find($student->id)->notify(new CommonNotification('paper','Paper'. $request->name));
+               
+                }
 
+            }
         }
+        
+        
         return true;
     }
+
+     public function getPapers(){
+        return  CommonResource::collection(Paper::select('id','title')->latest()->simplePaginate(10)->withPath(''));
+     }
+
+     public function downloadPaper(int $id)
+     {    
+       return response()->download(Paper::find($id)->file);
+     }
+
+
+     public function updateProfile(Request $request)
+     {
+         try{ 
+             // Validate the request
+             $validator = Validator::make($request->all(), [
+                 'name' => 'required|string|max:255',
+                 'email' => 'required|string|email|max:255|unique:users',
+                 'password' => 'required|string|min:8|confirmed',
+             ]);
+     
+             if ($validator->fails()) {
+                 return response()->json(['errors' => $validator->errors()], 422);
+             }
+     
+             // Create a new user
+            User::where('id',auth()->user()->id)->update([
+                 'name' => $request->name,
+                 'email' => $request->email,
+                 'password' => Hash::make($request->password),
+                 'role' =>'Lecturer'
+             ]);
+             return true;
+         }
+         catch(Exception $e)
+         {
+             return $e;
+         }
+     }
 }

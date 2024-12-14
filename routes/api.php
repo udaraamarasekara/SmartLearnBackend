@@ -15,11 +15,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 
     });
+    Route::get('/papers',[UserController::class,'getPapers']);
     Route::middleware(TutorMiddleware::class)->group(function () {
         Route::post('/paper',[UserController::class,'newPaper']);
-
-
+        Route::post('/tutor',[UserController::class,'updateProfile']);
     });
+    Route::get('/paper/{id}',[UserController::class,'downloadPaper']);
+
 });
 Route::post('/login',[UserController::class,'login']);
 Route::post('/register',[UserController::class,'register']);
