@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CommonResource;
-use App\Models\Fcm;
+use App\Jobs\sendNotifications;
 use App\Models\Paper;
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Notifications\CommonNotification;
+
 use Exception;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -38,7 +38,8 @@ class UserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' =>'Student'
+            'role' =>'Student',
+            'is_approved'=>false
         ]);
 
         // Generate a token for the user
@@ -76,6 +77,10 @@ class UserController extends Controller
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
+        else if($user->is_approved==0)
+        {
+            return response()->json(['error' => 'User not approved!'], 403);
+        }
 
 
             $user->fcm()->create(['fcm'=>$request->fcm]);
@@ -90,16 +95,28 @@ class UserController extends Controller
         ]);
     }
 
-  
+     
+    public function approveMember(int $id)
+    {
+
+        try{
+         
+            User::where('id',$id)->update(['is_approved'=>true]);
+            return true; 
+          }
+          catch (Exception $e){
+              return false;
+          }
+    }
 
     public function getStudents()
     {
-        return  CommonResource::collection(User::select('id','name','email')->where('role','Student')->simplePaginate(10)->withPath(''));
+        return  CommonResource::collection(User::select('id','name','email','is_approved')->where('role','Student')->simplePaginate(10)->withPath(''));
     }
 
     public function getTutors()
     {
-        return  CommonResource::collection(User::select('id','name','email')->where('role','Lecturer')->simplePaginate(10)->withPath(''));
+        return  CommonResource::collection(User::select('id','name','email','is_approved' )->where('role','Lecturer')->simplePaginate(10)->withPath(''));
     }
     
 
@@ -122,7 +139,8 @@ class UserController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'role' =>'Lecturer'
+                'role' =>'Lecturer',
+                'is_approved'=>true
             ]);
             return true;
         }
@@ -161,14 +179,7 @@ class UserController extends Controller
             $path = $file->store('uploads', 'public');
             Paper::create(['title'=>$request->name,'file'=>$path]);   
             $students = User::where('role','Student')->get();
-            foreach($students as $student)
-            {    if(Fcm::where('user_id',$student->id)->exists())
-                { 
-                 User::find($student->id)->notify(new CommonNotification('paper','Paper'. $request->name));
-               
-                }
-
-            }
+            sendNotifications::dispatch($students,$request->name);
         }
         
         
@@ -191,7 +202,7 @@ class UserController extends Controller
              // Validate the request
              $validator = Validator::make($request->all(), [
                  'name' => 'required|string|max:255',
-                 'email' => 'required|string|email|max:255|unique:users',
+                 'email' => 'required|string|email|max:255',
                  'password' => 'required|string|min:8|confirmed',
              ]);
      
@@ -213,4 +224,12 @@ class UserController extends Controller
              return $e;
          }
      }
+
+     public function logout(Request $request)
+{
+    // Revoke the token of the current user
+    $request->user()->currentAccessToken()->delete();
+
+    return true;
+}
 }
